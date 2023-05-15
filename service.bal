@@ -1,4 +1,5 @@
 import ballerina/http;
+import ballerina/io;
 import ballerinax/azure_cosmosdb as cosmosdb;
 configurable config cosmosConfig = ?;
 
@@ -16,8 +17,13 @@ service / on new http:Listener(9090) {
         json[] outputs = check from PoliceRecord policeRecord in result  select policeRecord;
         return outputs;
     }
-    resource function get residentsByAddress(string address) returns json[]|error {
-        string query = string `SELECT c.NIC, c.name FROM c  WHERE c.address = '${address}'`;
+    resource function get residentsByAddress(http:Request req) returns json[]|error {
+        json payload = check req.getJsonPayload();
+        io:println(payload.toString());
+        string address =  <string> check payload.address;
+        io:println(address);
+        //string test = "  ";
+        string query = string `SELECT c.NIC, c.name, c.address FROM c  WHERE c.address = '${address}'`;
         stream<AddressRecord, error?> result = check azureCosmosClient->queryDocuments("grama-db", "addressContainer", query);
         json[] outputs = check from AddressRecord addressRecord in result  select addressRecord;
         return outputs;
