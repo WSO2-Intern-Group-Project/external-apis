@@ -17,8 +17,8 @@ service / on new http:Listener(9090) {
         json[] outputs = check from PoliceRecord policeRecord in result  select policeRecord;
         return outputs;
     }
-    resource function get residentsByAddress(http:Request req) returns json[]|error {
-        json payload = check req.getJsonPayload();
+    resource function post residentsByAddress(@http:Header {name: "Content-Type"} string fileType, @http:Payload json data) returns json[]|error {
+        json payload = check data.cloneWithType();
         io:println(payload.toString());
         string address =  <string> check payload.address;
         io:println(address);
