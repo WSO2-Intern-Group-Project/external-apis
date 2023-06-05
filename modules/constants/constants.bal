@@ -11,8 +11,3 @@ public const string ADDRESS_NOT_FOUND = "Address not found.";
 public const string ADDRESS_DATA_RETRIEVED = "Address retrieval successful";
 public const string IDENTITY_RETRIEVED = "Identity retrieval successful";
 public const string POLICE_REPORTS_RETRIEVED = "Police report retrieval successful";
-
-
-public enum STATUS {
-    PENDING = "Pending"
-}
