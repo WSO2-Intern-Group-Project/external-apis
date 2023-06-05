@@ -1,42 +1,48 @@
 import ballerina/http;
-import ballerina/io;
-import ballerinax/azure_cosmosdb as cosmosdb;
-configurable config cosmosConfig = ?;
-
-final cosmosdb:ConnectionConfig configuration = {
-            baseUrl: cosmosConfig.baseUrl,
-            primaryKeyOrResourceToken:cosmosConfig.primaryKey
-        };
-final cosmosdb:DataPlaneClient azureCosmosClient = check new (configuration);
+import external_apis.database;
+import external_apis.types;
+import external_apis.constants;
 
 service / on new http:Listener(9090) {
 
-    resource function get policeRecordsByNIC(string NIC) returns json[]|error {
-        string query = string `SELECT c.NIC, c.date, c.description FROM c  WHERE c.NIC = '${NIC}'`;
-        stream<PoliceRecord, error?> result = check azureCosmosClient->queryDocuments("grama-db", "policeReportContainer", query);
-        json[] outputs = check from PoliceRecord policeRecord in result  select policeRecord;
+    isolated resource function get policeRecordsByNIC(string nic) returns json[]|types:AppServerError {
+        json[]|error  outputs = database:getPoliceReportsByNIC(nic);
+        if outputs is error {
+            return <types:AppServerError>{
+                body: {message: constants:INTERNAL_ERROR}
+            };
+        }
         return outputs;
     }
-    resource function post residentsByAddress(@http:Header {name: "Content-Type"} string fileType, @http:Payload json data) returns json[]|error {
+
+    isolated resource function get identityRecordByNIC(string nic) returns json|types:AppServerError|types:AppBadRequestError|error {
+        json|error  output = database:getIdentityByNIC(nic);
+        if output is error {
+            return <types:AppServerError>{
+                body: {message: constants:INTERNAL_ERROR}
+            };
+        }
+        else if output == () {
+            return <types:AppBadRequestError>{
+                body: {message: constants:ID_NOT_FOUND}
+            };
+        }
+        return output;
+    }
+    isolated resource function post residentsByAddress(@http:Header {name: "Content-Type"} string fileType, @http:Payload json data) returns json[]|types:AppServerError|types:AppBadRequestError|error {
         json payload = check data.cloneWithType();
-        io:println(payload.toString());
         string address =  <string> check payload.address;
-        io:println(address);
-        //string test = "  ";
-        string query = string `SELECT c.NIC, c.name, c.address FROM c  WHERE c.address = '${address}'`;
-        stream<AddressRecord, error?> result = check azureCosmosClient->queryDocuments("grama-db", "addressContainer", query);
-        json[] outputs = check from AddressRecord addressRecord in result  select addressRecord;
+        json[]|error outputs = database:getResidentsByAddress(address);
+        if outputs is error {
+            return <types:AppServerError>{
+                body: {message: constants:INTERNAL_ERROR}
+            };
+        }
+        else if outputs == [] {
+            return <types:AppBadRequestError>{
+                body: {message: constants:ADDRESS_NOT_FOUND}
+            };
+        }
         return outputs;
-    }
-    resource function get identityRecordByNIC(string NIC) returns json|error {
-        string query = string `SELECT c.NIC, c.name, c.address, c.gender, c.DoB, c.placeOfBirth, c.occupation FROM c  WHERE c.NIC = '${NIC}'`;
-        stream<Person, error?> result = check azureCosmosClient->queryDocuments("grama-db", "identityContainer", query);
-        json[] outputs = check from Person person in result  select person;
-        if(outputs.length() == 1){
-            return outputs[0];
-        }
-        else{
-            return {};
-        }
     }
 }
